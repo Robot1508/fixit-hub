@@ -9,7 +9,8 @@ import Wards from './pages/Wards';
 import Feed from './pages/Feed';
 import Reports from './pages/Reports';
 import Settings from './pages/Settings';
-
+// At the bottom of index.js
+module.exports = app;
 function App() {
   return (
     <AppProvider>
