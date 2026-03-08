@@ -20,17 +20,23 @@ export default function Issues() {
   const [reopenReason, setReopenReason] = useState('');
   const [showReopenInput, setShowReopenInput] = useState(false);
 
-  const filtered = issues.filter(i => {
+  const filtered = issues
+  .filter(i => {
     const q = search.toLowerCase();
+
     return (
       (catFilter === 'All' || i.category === catFilter) &&
       (statusFilter === 'All' || i.status === statusFilter) &&
       (priFilter === 'All' || i.priority === priFilter) &&
       (wardFilter === 'All' || i.ward === wardFilter) &&
-      (!q || i.title.toLowerCase().includes(q) || i.id.toLowerCase().includes(q) || i.ward.toLowerCase().includes(q))
+      (!q ||
+        i.title.toLowerCase().includes(q) ||
+        i.id.toLowerCase().includes(q) ||
+        i.ward.toLowerCase().includes(q)
+      )
     );
-  });
-
+  })
+  .sort((a, b) => (b.severity || 0) - (a.severity || 0));
   const handleAssign = (issueId, workerId) => {
     updateIssueStatus(issueId, 'Assigned', workerId);
     setSelected(prev => prev ? { ...prev, assignedTo: workerId, status: 'Assigned' } : prev);
