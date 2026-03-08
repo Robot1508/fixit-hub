@@ -10,8 +10,7 @@ FixIt Hub is a smart civic issue reporting platform that allows citizens to repo
 
 ## Tech Stack
 Frontend: React  
-Backend: Node.js / Express  
-Database: MongoDB  
+Backend: AWS (bedrock,lambda)
 Cloud: AWS
 
 ## Problem
