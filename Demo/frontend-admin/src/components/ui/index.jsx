@@ -90,3 +90,13 @@ export function PriorityBadge({ priority }) {
     </span>
   );
 }
+const express = require('express');
+const app = express();
+
+// ... your routes and logic ...
+
+// REMOVE or COMMENT OUT this part for Vercel:
+// app.listen(5000, () => console.log('Server running'));
+
+// ADD THIS instead:
+module.exports = app;
