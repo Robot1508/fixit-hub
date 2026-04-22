@@ -19,6 +19,7 @@ export default function ComplaintDetail({ complaint, onBack }) {
   const { addComment, upvoteComplaint, complaints } = useClient();
   const [comment, setComment] = useState('');
   const [upvoted, setUpvoted] = useState(false);
+  const [showLogic, setShowLogic] = useState(false);
 
   // Live data
   const live = complaints.find(c => c.id === complaint.id) || complaint;
@@ -90,14 +91,42 @@ export default function ComplaintDetail({ complaint, onBack }) {
           <div className="flex flex-wrap gap-2 mb-3">
             <StatusBadge status={live.status} />
             <span className={`px-2.5 py-1 rounded-full text-xs font-semibold
-              ${live.priority === 'High' ? 'bg-red-100 text-red-700' :
+              ${live.priority === 'Critical' ? 'bg-purple-100 text-purple-800 border border-purple-200' :
+                live.priority === 'High' ? 'bg-red-100 text-red-700' :
                 live.priority === 'Medium' ? 'bg-orange-100 text-orange-700' : 'bg-green-100 text-green-700'}`}>
               {live.priority} Priority
             </span>
             <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-700">
               {live.category}
             </span>
+            
+            {live.fairnessMetadata && (
+              <button 
+                onClick={() => setShowLogic(!showLogic)}
+                className="px-2.5 py-1 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200 flex items-center gap-1 active:scale-95"
+              >
+                <Eye size={12} />
+                Logic View
+              </button>
+            )}
           </div>
+          
+          {showLogic && live.fairnessMetadata && (
+            <div className="mb-4 bg-indigo-50/50 border border-indigo-100 rounded-xl p-3 shadow-inner">
+              <div className="flex items-center gap-2 mb-1.5">
+                <span className="text-[10px] uppercase font-bold text-indigo-400 tracking-wider">Agentic Integrity Scan</span>
+              </div>
+              <p className="text-sm text-indigo-900 leading-snug">
+                <strong>Detected:</strong> {live.category} ({live.fairnessMetadata.confidenceToEnvironmentRatio * 100}%)<br/>
+                {live.fairnessMetadata.explanation}
+              </p>
+              {live.isSilentZoneBoosted && (
+                <p className="mt-1.5 text-xs text-purple-600 font-semibold bg-purple-100/50 inline-block px-2 py-0.5 rounded">
+                  ↑ Silent Zone Boost Applied
+                </p>
+              )}
+            </div>
+          )}
 
           {live.image && (
             <h2 className="font-bold text-gray-900 text-base mb-1">{live.title}</h2>

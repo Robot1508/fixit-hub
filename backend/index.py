@@ -29,7 +29,9 @@ def lambda_handler(event, context):
 
         response = bedrock.invoke_model(
             modelId=model_id,
-            body=json.dumps(prompt_config)
+            body=json.dumps(prompt_config),
+            guardrailIdentifier="fixit-equity-guardrail",
+            guardrailVersion="DRAFT"
         )
 
         result = json.loads(response.get('body').read())

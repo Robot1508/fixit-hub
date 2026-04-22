@@ -2,6 +2,10 @@ import { useState } from 'react';
 import { useClient } from '../context/ClientContext';
 import { ArrowLeft, MapPin, Camera, ChevronDown, Eye, Lock, CheckCircle } from 'lucide-react';
 import GeoCamera from '../components/shared/GeoCamera';
+import { generateFairnessMetadata } from '../lib/integrity-engine';
+import { storage, functions } from '../lib/firebase';
+import { ref, uploadString, getDownloadURL } from 'firebase/storage';
+import { httpsCallable } from 'firebase/functions';
 
 const categories = ['Road', 'Water', 'Electricity', 'Garbage', 'Traffic', 'Public Facilities'];
 const categoryIcons = { Road: '🛣️', Water: '💧', Electricity: '⚡', Garbage: '🗑️', Traffic: '🚦', 'Public Facilities': '🏛️' };
@@ -17,9 +21,8 @@ export default function ReportIssue({ onBack, onSuccess }) {
   const [form, setForm] = useState({
     category: '',
     title: '',
-    title: '',
     description: '',
-    location: user?.ward + ', Ichalkaranji',
+    location: user?.ward ? user.ward + ', Ichalkaranji' : 'Ward 5, Ichalkaranji',
     ward: user?.ward || 'Ward 5',
     isPublic: true,
   });
@@ -40,39 +43,48 @@ export default function ReportIssue({ onBack, onSuccess }) {
     setSubmitting(true);
 
     try {
-      // 🚀 AWS NATIVE INTEGRATION
-      // This routes through Amazon API Gateway to your AWS Lambda
-      const API_URL = "https://ncwmp46r55.execute-api.us-east-1.amazonaws.com/prod/diagnose";
+      // 🚀 UPLOAD TO FIREBASE STORAGE
+      let imageUrl = null;
+      if (capturedPhoto) {
+        const fileRef = ref(storage, `complaint_photos/${Date.now()}.jpg`);
+        await uploadString(fileRef, capturedPhoto, 'data_url');
+        imageUrl = await getDownloadURL(fileRef);
+      }
 
-      const response = await fetch(API_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+      // 🚀 GCP NATIVE INTEGRATION: Call Gemini 1.5 Flash via Firebase Function
+      const analyzeIssue = httpsCallable(functions, 'analyzeIssue');
+      let aiData = { category: null, severity_score: 5 };
+      try {
+        const response = await analyzeIssue({
           description: form.description,
           category: form.category,
-          image: capturedPhoto // Base64 image for Amazon Bedrock analysis
-        })
-      });
+          ward: form.ward,
+          imageBase64: capturedPhoto
+        });
+        aiData = response.data;
+      } catch (fnError) {
+        console.error("Firebase Function Error, using defaults:", fnError);
+      }
 
-      if (!response.ok) throw new Error('Gateway Error');
-      
-      const aiData = await response.json();
+      // Agentic Integrity Layer: Generate Fairness Metadata
+      const fairnessMeta = generateFairnessMetadata(capturedPhoto, form.ward, aiData);
 
-      // Save to local context with AI severity score
+      // Save to Firestore Context
       const id = submitComplaint({
         ...form,
-        image: capturedPhoto,
+        image: imageUrl || capturedPhoto, // Fallback to base64 if storage fails (rare)
         gpsLocation: capturedLocation,
         aiCategory: aiData.category || form.category,   
-        severity: aiData.severity_score || 5 
+        severity: aiData.severity_score || 5,
+        fairnessMetadata: fairnessMeta
       });
 
       setSubmitting(false);
       if (onSuccess) onSuccess(id);
 
     } catch (error) {
-      console.error("AWS Error:", error);
-      // Fallback: Save normally if the cloud is unreachable
+      console.error("Submission Error:", error);
+      // Fallback
       const id = submitComplaint({ ...form, image: capturedPhoto, severity: 5 });
       setSubmitting(false);
       if (onSuccess) onSuccess(id);
@@ -148,7 +160,7 @@ export default function ReportIssue({ onBack, onSuccess }) {
             <div className="flex gap-3">
               <button onClick={() => setStep(2)} className="flex-1 bg-gray-100 font-bold py-4 rounded-xl">Edit</button>
               <button onClick={handleSubmit} disabled={submitting} className="flex-[2] bg-[#2563eb] text-white font-bold py-4 rounded-xl shadow-lg">
-                {submitting ? 'SYNCING AWS...' : 'SUBMIT ISSUE'}
+                {submitting ? 'SYNCING GCP...' : 'SUBMIT ISSUE'}
               </button>
             </div>
           </div>
